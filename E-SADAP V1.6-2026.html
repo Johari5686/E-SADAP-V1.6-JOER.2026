@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="id" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi SADAP 2026 - Nunukan</title>
+    <!-- Bootstrap 5 CSS & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        body { background-color: var(--bs-body-bg); transition: background-color 0.3s ease, color 0.3s ease; overflow-x: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .top-bar { z-index: 1030; position: fixed; top: 0; right: 0; width: 100%; height: 60px; background-color: #ffffff; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #e2e8f0; }
+        [data-bs-theme="dark"] .top-bar { background-color: #1e293b; border-bottom-color: #334155; color: white; }
+        .marquee-container { position: fixed; top: 60px; width: 100%; background-color: #fbbf24; color: #000; padding: 6px 0; z-index: 1020; overflow: hidden; white-space: nowrap; font-weight: bold; font-size: 14px; }
+        .marquee-content { display: inline-block; animation: marquee 25s linear infinite; }
+        @keyframes marquee { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }
+        .main-wrapper { display: flex; min-height: 100vh; padding-top: 90px; }
+        #sidebar-container { width: 280px; position: fixed; top: 0; left: 0; height: 100vh; z-index: 1040; background-color: #ffffff; border-right: 1px solid #e2e8f0; overflow-y: auto; transition: all 0.3s ease; }
+        [data-bs-theme="dark"] #sidebar-container { background-color: #0f172a; border-color: #1e293b; }
+        .main-content { flex: 1; margin-left: 280px; padding: 30px; min-height: calc(100vh - 90px); transition: all 0.3s ease; }
+        @media (max-width: 992px) { .main-content { margin-left: 0; } #sidebar-container { margin-left: -280px; } #sidebar-container.show { margin-left: 0; } }
+        .menu-link { display: flex; align-items: center; padding: 0.75rem 1rem; color: #475569; border-radius: 0.5rem; margin-bottom: 0.25rem; font-weight: 600; text-decoration: none; transition: all 0.2s; cursor: pointer; }
+        .menu-link:hover, .menu-link.active { background-color: #059669; color: white; }
+        .menu-link i { width: 24px; text-align: center; margin-right: 10px; }
+        [data-bs-theme="dark"] .menu-link { color: #cbd5e1; }
+        [data-bs-theme="dark"] .menu-link:hover, [data-bs-theme="dark"] .menu-link.active { background-color: #059669; color: white; }
+        .view-section { display: none; }
+        .score-drop { color: #dc3545; font-weight: bold; }
+        #message-box { position: fixed; bottom: 20px; right: 20px; z-index: 1060; display: none; min-width: 250px; }
+        .ai-loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
+        [data-bs-theme="dark"] .ai-loading-overlay { background: rgba(15,23,42,0.9); color: white;}
+    </style>
+</head>
+<body class="bg-light text-dark">
+
+<!-- TOP BAR -->
+<div class="top-bar shadow-sm">
+    <button onclick="toggleSidebar()" class="btn d-lg-none text-secondary fs-4 p-0 border-0 me-auto"><i class="bi bi-list"></i></button>
+    <div class="d-flex align-items-center ms-auto">
+        <div class="form-check form-switch m-0 me-4 d-flex align-items-center">
+            <i class="bi bi-sun-fill text-warning me-2 fs-5"></i>
+            <input class="form-check-input mt-0 fs-5" type="checkbox" role="switch" id="darkModeSwitch" onchange="toggleDarkMode()" style="cursor: pointer;">
+            <i class="bi bi-moon-stars-fill ms-2 fs-5 text-secondary"></i>
+        </div>
+        <button id="btn-show-login" class="btn text-white fw-bold px-4 rounded-pill shadow-sm" style="background-color: #059669;" data-bs-toggle="modal" data-bs-target="#loginModal"><i class="bi bi-box-arrow-in-right me-1"></i> Masuk</button>
+    </div>
+</div>
+
+<div class="marquee-container shadow-sm"><div class="marquee-content"><span>⚠️ SELAMAT DATANG DI APLIKASI SADAP 2026 NUNUKAN, SEGERA INFOKAN KE ADMIN/PENGAWAS DAN MINTA APPROVE SETELAH LOGIN, TERIMA KASIH. ⚠️</span></div></div>
+
+<!-- MODAL LOGIN -->
+<div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header text-white" style="background-color: #059669;">
+                <h5 class="modal-title fw-bold"><i class="bi bi-shield-lock me-2"></i> Login SADAP</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="form-login" onsubmit="prosesLogin(event)">
+                    <div class="mb-3"><label class="form-label fw-bold">Username</label><input type="text" id="login-username" class="form-control" required></div>
+                    <div class="mb-3"><label class="form-label fw-bold">Password</label><input type="password" id="login-password" class="form-control" required></div>
+                    <button type="submit" class="btn w-100 fw-bold text-white" style="background-color: #059669;">Login Sekarang</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="message-box" class="toast align-items-center text-bg-success border-0"><div class="d-flex"><div class="toast-body fw-bold" id="message-text"></div><button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="closeMessage()"></button></div></div>
+
+<!-- LOADING AI -->
+<div class="ai-loading-overlay" id="ai-loader">
+    <i class="fa-solid fa-microchip fa-spin text-success" style="font-size: 50px;"></i>
+    <h4 class="mt-3 fw-bold" id="ai-loader-text">AI Sedang Menganalisis Dokumen...</h4>
+    <p class="text-muted">Menyusun RKT, ARKAS, dan Jadwal Pendampingan.</p>
+</div>
+
+<div class="main-wrapper">
+    <!-- SIDEBAR -->
+    <aside id="sidebar-container" class="shadow-sm">
+        <div class="p-3 text-white d-flex align-items-center" style="background-color: #064e3b; height: 70px;">
+            <img src="https://smpnegeri1lumbis.sch.id/wp-content/uploads/2026/09/logo67.png" class="rounded-circle bg-white p-1 me-2" style="width: 40px; height: 40px; object-fit: contain;" onerror="this.src='https://placehold.co/100x100?text=Logo'">
+            <div><h5 class="m-0 fw-bold">SADAP</h5><small class="text-white-50" style="font-size: 10px;">DIKNAS KAB. NUNUKAN</small></div>
+        </div>
+
+        <div id="sidebar-profile" class="p-3 border-bottom bg-light text-center" style="display: none;">
+            <div class="rounded-circle bg-success text-white d-inline-flex align-items-center justify-content-center fs-4 fw-bold mb-2 shadow-sm" style="width: 50px; height: 50px;" id="ui-avatar">G</div>
+            <h6 class="fw-bold m-0 text-dark" id="ui-username">Nama</h6>
+            <span class="badge bg-warning text-dark mt-1" id="ui-role">PERAN</span>
+            <p class="text-muted small m-0 mt-1" id="ui-status">-</p>
+        </div>
+
+        <div id="sidebar-public-msg" class="p-3 text-center border-bottom bg-light"><small class="text-muted fw-bold">Anda belum login.</small></div>
+
+        <div class="p-3">
+            <small class="text-uppercase fw-bold text-muted" style="font-size: 11px;">Menu Publik</small>
+            <div class="mt-2">
+                <a onclick="showSection('view-profil-admin', this)" class="menu-link"><i class="fa-solid fa-address-card"></i> Profil Admin</a>
+                <a onclick="showSection('view-dashboard', this)" class="menu-link active" id="nav-dashboard"><i class="fa-solid fa-chart-pie"></i> Dashboard Utama</a>
+                <a href="https://portal-sekolah-lumbis-raya.netlify.app" target="_blank" class="menu-link"><i class="fa-solid fa-globe"></i> Portal Sekolah <i class="fa-solid fa-arrow-up-right-from-square ms-auto small"></i></a>
+                <a onclick="showSection('view-analisis-rapor', this)" class="menu-link"><i class="fa-solid fa-microchip"></i> Analisis Rapor Pendidkan</a>
+                <a onclick="showSection('view-pengaduan', this)" class="menu-link"><i class="fa-solid fa-bullhorn"></i> Layanan Pengaduan</a>
+                <a onclick="toggleSubMenu('masterMenu')" class="menu-link"><i class="fa-solid fa-database"></i> Data Master <i class="fa-solid fa-caret-down ms-auto"></i></a>
+                <div class="ps-3 d-none" id="masterMenu">
+                    <a onclick="showSection('view-profil-sekolah', this)" class="menu-link small py-2"><i class="fa-solid fa-school"></i> Profil Sekolah Binaan</a>
+                    <a onclick="showSection('view-data-ptk', this)" class="menu-link small py-2"><i class="fa-solid fa-users"></i> Data PTK</a>
+                </div>
+            </div>
+
+            <div id="menu-group-restricted" style="display: none;" class="mt-3">
+                <small class="text-uppercase fw-bold text-muted" style="font-size: 11px;">Area Sekolah</small>
+                <div class="mt-2">
+                    <a onclick="showSection('view-galeri', this)" class="menu-link"><i class="fa-solid fa-images"></i> Galeri Foto Drive</a>
+                    <a onclick="showSection('view-arsip', this)" class="menu-link"><i class="fa-solid fa-folder-open"></i> Arsip & Dokumen</a>
+                    <a onclick="showSection('view-kepsek', this)" class="menu-link" id="nav-kepsek" style="display: none;"><i class="fa-solid fa-cloud-arrow-up"></i> Unggah Dokumen</a>
+                    <a onclick="showSection('view-guru', this)" class="menu-link" id="nav-guru" style="display: none;"><i class="fa-solid fa-book-open"></i> Administrasi Guru</a>
+                    <a onclick="showSection('view-laporan', this)" class="menu-link" id="nav-laporan" style="display: none;"><i class="fa-solid fa-pen-to-square"></i> Buat Laporan</a>
+                    <a onclick="showSection('view-supervisi', this)" class="menu-link" id="nav-supervisi"><i class="fa-solid fa-clipboard-check"></i> Jadwal Supervisi</a>
+                </div>
+            </div>
+
+            <div id="menu-group-pengawas" style="display: none;" class="mt-3">
+                <small class="text-uppercase fw-bold text-muted" style="font-size: 11px;">Area Pengawas</small>
+                <div class="mt-2">
+                    <a onclick="showSection('view-approval', this)" class="menu-link text-danger fw-bold"><i class="fa-solid fa-user-check"></i> Persetujuan Akses</a>
+                </div>
+            </div>
+        </div>
+
+        <div id="sidebar-logout" class="p-3 border-top mt-auto" style="display: none;">
+            <button onclick="logoutUser()" class="btn btn-outline-danger w-100 fw-bold rounded-pill"><i class="fa-solid fa-power-off me-2"></i> Keluar</button>
+        </div>
+    </aside>
+
+    <!-- KONTEN UTAMA -->
+    <div class="main-content" id="printable-area">
+        
+        <div id="view-profil-admin" class="view-section">
+            <h4 class="mb-4 fw-bold"><i class="fa-solid fa-address-card me-2 text-success"></i> Profil Pengawas</h4>
+            <div class="card shadow-sm border-0"><div class="card-body text-center"><img src="https://smpnegeri1lumbis.sch.id/wp-content/uploads/2026/10/Profil-Admin.jpg" class="img-fluid rounded shadow-lg mx-auto" style="max-height: 155vh;" onerror="this.src='https://placehold.co/400x600?text=Profil+Admin'"></div></div>
+        </div>
+
+        <div id="view-dashboard" class="view-section" style="display: block;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="m-0 fw-bold"><i class="fa-solid fa-chart-pie me-2 text-success"></i> Beranda Sistem Data</h4>
+                <button onclick="fetchDashboardStats()" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+            </div>
+            <div class="row mb-4">
+                <div class="col-md-3"><div class="card text-white mb-3 shadow-sm border-0 bg-success"><div class="card-body"><h6 class="fw-bold">Total Binaan</h6><h2 id="dash-binaan"><i class="fa-solid fa-spinner fa-spin fs-5"></i></h2></div></div></div>
+                <div class="col-md-3"><div class="card text-white mb-3 shadow-sm border-0 bg-primary"><div class="card-body"><h6 class="fw-bold">Disupervisi Bulan Ini</h6><h2 id="dash-supervisi"><i class="fa-solid fa-spinner fa-spin fs-5"></i></h2></div></div></div>
+                <div class="col-md-3"><div class="card bg-warning mb-3 shadow-sm border-0 text-dark"><div class="card-body"><h6 class="fw-bold">Peringatan Data Rapor</h6><h2 id="dash-peringatan"><i class="fa-solid fa-spinner fa-spin fs-5"></i></h2></div></div></div>
+                <div class="col-md-3"><div class="card text-white mb-3 shadow-sm border-0" style="background-color: #7c3aed;"><div class="card-body"><h6 class="fw-bold">Total Guru (PTK)</h6><h2 id="dash-guru"><i class="fa-solid fa-spinner fa-spin fs-5"></i></h2></div></div></div>
+            </div>
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white"><h6 class="m-0 fw-bold text-success">Laporan Aktivitas Terkini (Top 5)</h6></div>
+                <div class="card-body"><div id="recent-reports-container" class="vstack gap-3"></div></div>
+            </div>
+        </div>
+
+        <div id="view-analisis-rapor" class="view-section">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="fw-bold"><i class="fa-solid fa-microchip text-success me-2"></i> Dashboard Telaah Rapor Pendidikan</h3>
+                <div><button onclick="downloadPDF('rapor-pdf-content', 'Laporan_Menyeluruh_Rapor.pdf')" class="btn btn-danger shadow-sm"><i class="fa-solid fa-file-pdf me-2"></i> Laporan Menyeluruh PDF</button></div>
+            </div>
+            <div class="row mb-4">
+                <div class="col-md-4"><div class="card border-0 shadow-sm bg-danger text-white"><div class="card-body"><h6 class="fw-bold"><i class="fa-solid fa-arrow-trend-down"></i> Indikator Turun > 20 Poin</h6><h2 class="m-0">4 <small class="fs-6 fw-normal">Sekolah (Kritis)</small></h2></div></div></div>
+                <div class="col-md-4"><div class="card border-0 shadow-sm bg-warning text-dark"><div class="card-body"><h6 class="fw-bold"><i class="fa-solid fa-triangle-exclamation"></i> Indikator Turun > 15 Poin</h6><h2 class="m-0">8 <small class="fs-6 fw-normal">Sekolah (Waspada)</small></h2></div></div></div>
+                <div class="col-md-4"><div class="card border-0 shadow-sm bg-secondary text-white"><div class="card-body"><h6 class="fw-bold"><i class="fa-solid fa-file-circle-xmark"></i> Belum Upload Rapor 2026</h6><h2 class="m-0">14 <small class="fs-6 fw-normal">Sekolah</small></h2></div></div></div>
+            </div>
+            
+            <div id="rapor-pdf-content" class="bg-white p-4 rounded shadow-sm border">
+                <div class="row mb-5">
+                    <div class="col-md-6"><h5 class="fw-bold border-bottom pb-2 mb-3">Grafik Jumlah Indikator Turun</h5><canvas id="raporChart" height="200"></canvas></div>
+                    <div class="col-md-6">
+                        <h5 class="fw-bold border-bottom pb-2 mb-3 text-danger">Rekapitulasi Prioritas Intervensi (Ranking)</h5>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover small">
+                                <thead class="table-danger"><tr><th>Nama Sekolah</th><th>Total Turun</th><th>Aksi</th></tr></thead>
+                                <tbody>
+                                    <tr><td class="fw-bold">SMP Negeri 1 Lumbis</td><td class="score-drop text-danger fw-bold">-8 Indikator</td><td><button onclick="lihatDetailAI('SMP Negeri 1 Lumbis')" class="btn btn-sm btn-primary py-0"><i class="fa-solid fa-eye"></i> Telaah</button></td></tr>
+                                    <tr><td class="fw-bold">SD Negeri 001 Lumbis</td><td class="score-drop text-danger fw-bold">-6 Indikator</td><td><button onclick="lihatDetailAI('SD Negeri 001 Lumbis')" class="btn btn-sm btn-primary py-0"><i class="fa-solid fa-eye"></i> Telaah</button></td></tr>
+                                    <tr><td class="fw-bold">SMP Negeri 2 Lumbis</td><td class="score-drop text-danger fw-bold">-4 Indikator</td><td><button onclick="lihatDetailAI('SMP Negeri 2 Lumbis')" class="btn btn-sm btn-primary py-0"><i class="fa-solid fa-eye"></i> Telaah</button></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="ai-result-panel" style="display:none;" class="border-top pt-4 mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="fw-bold text-success m-0" id="ai-school-name">Hasil Analisis Otomatis</h4>
+                        <span class="badge bg-success"><i class="fa-solid fa-check-circle"></i> AI Generated</span>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-5">
+                            <div class="bg-light p-3 rounded mb-3 border-start border-4 border-danger"><h6 class="fw-bold text-danger">Indikator Prioritas yang Turun</h6><ul class="small mb-0"><li>Kemampuan Literasi (<span class="text-danger">-12.5 poin</span>)</li><li>Karakter (<span class="text-danger">-8.2 poin</span>)</li><li>Iklim Keamanan Sekolah (<span class="text-danger">-5.1 poin</span>)</li></ul></div>
+                            <div class="bg-light p-3 rounded border-start border-4 border-warning mb-3"><h6 class="fw-bold text-dark">Akar Masalah (Identifikasi Pola AI)</h6><p class="small mb-0">Penurunan literasi linier dengan rendahnya pemanfaatan perpustakaan dan kurangnya instrumen asesmen guru yang memuat soal HOTS.</p></div>
+                        </div>
+                        <div class="col-md-7">
+                            <h6 class="fw-bold mb-2">Rekomendasi Template RKT & ARKAS</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered small align-middle">
+                                    <thead class="table-light"><tr><th>Fokus Benahi</th><th>Kegiatan (RKT)</th><th>Biaya BOSP</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>A.1 Literasi</td><td>Bimtek Penyusunan Instrumen Asesmen Literasi</td><td>Rp 3.500.000</td></tr>
+                                        <tr><td>A.1 Literasi</td><td>Pembelian buku bacaan non-teks berkualitas</td><td>Rp 5.000.000</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-galeri" class="view-section">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="fw-bold"><i class="fa-solid fa-images text-success me-2"></i> Galeri Kegiatan Cloud</h3>
+                <button onclick="muatGaleriDrive()" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-rotate"></i> Refresh Galeri</button>
+            </div>
+            <div class="alert alert-info border-0 shadow-sm"><i class="fa-solid fa-cloud me-2"></i> Menampilkan foto secara langsung dari Folder Google Drive.</div>
+            <div id="galeri-container" class="row g-4"></div>
+        </div>
+
+        <div id="view-pengaduan" class="view-section">
+            <h3 class="mb-4 fw-bold">Layanan Aspirasi & Pengaduan</h3>
+            <div class="card shadow-sm mb-4 border-0">
+                <div class="card-header text-white bg-danger"><i class="fa-solid fa-triangle-exclamation me-2"></i> Sampaikan Laporan / Pengaduan</div>
+                <div class="card-body">
+                    <form onsubmit="kirimPengaduan(event)" id="form-pengaduan">
+                        <div class="mb-3"><label class="form-label fw-bold">Nama Lengkap</label><input type="text" id="pengaduan-nama" class="form-control" required></div>
+                        <div class="mb-3"><label class="form-label fw-bold">Sekolah Asal</label><input type="text" id="pengaduan-sekolah" class="form-control" required></div>
+                        <div class="mb-3"><label class="form-label fw-bold">Isi Detail</label><textarea id="pengaduan-isi" class="form-control" rows="4" required></textarea></div>
+                        <div class="mb-3"><label class="form-label fw-bold text-danger">Lampiran Bukti (Opsional - max 5MB)</label><input type="file" id="pengaduan-file" class="form-control"></div>
+                        <button type="submit" id="btn-submit-pengaduan" class="btn text-white px-5 py-2 shadow-sm fw-bold bg-danger"><i class="fa-solid fa-paper-plane me-2"></i> Kirim</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-profil-sekolah" class="view-section">
+            <h3 class="mb-4 fw-bold">Data Profil Sekolah Binaan</h3>
+            <div class="card shadow-sm border-0">
+                <div class="card-body table-responsive">
+                    <table class="table table-hover table-bordered align-middle small" style="min-width: 900px;">
+                        <thead class="table-success text-center align-middle">
+                            <tr><th rowspan="2">No</th><th rowspan="2">NPSN</th><th rowspan="2">Nama Sekolah</th><th rowspan="2">Kepala Sekolah</th><th rowspan="2">Guru</th><th colspan="2">Siswa</th><th rowspan="2">Rombel</th><th rowspan="2">R. Kelas</th></tr>
+                            <tr><th>L</th><th>P</th></tr>
+                        </thead>
+                        <tbody id="tabel-data-sekolah"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-data-ptk" class="view-section">
+            <h3 class="mb-4 fw-bold">Rekapitulasi Data PTK</h3>
+            <div class="alert alert-info border-0 shadow-sm"><i class="fa-solid fa-circle-info me-2"></i> Data Pendidik dan Tenaga Kependidikan terangkum berdasarkan sinkronisasi Dapodik terakhir.</div>
+        </div>
+
+        <div id="view-kepsek" class="view-section">
+            <h3 class="mb-4 fw-bold">Dasbor Kepala Sekolah</h3>
+            <div class="card shadow-sm mb-4 border-0">
+                <div class="card-header text-white" style="background-color: #059669;">Unggah Dokumen Kepala Sekolah</div>
+                <div class="card-body">
+                    <form onsubmit="handleUpload(event, 'Kepala Sekolah')">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-danger">Kategori Dokumen (Wajib Pilih)</label>
+                            <select class="form-select border-danger" id="kategori-kepsek" required>
+                                <option value="Rapor 1. Pendidikan Terbaru">Rapor Pendidikan Terbaru (Excel/PDF) - Trigger AI</option>
+                                <option value="Administrasi Keuangan">2. Administrasi Keuangan (BKU / eBMD)</option>
+                                <option value="Supervisi Internal">3. Supervisi Akademik Internal</option>
+                            </select>
+                        </div>
+                        <div class="mb-3"><label class="form-label fw-bold">Pilih File</label><input type="file" id="file-kepsek" class="form-control" required></div>
+                        <button type="submit" id="btn-upload-kepsek" class="btn text-white px-4" style="background-color: #059669;"><i class="fa-solid fa-cloud-arrow-up"></i> Unggah Dokumen</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div id="view-guru" class="view-section">
+            <h3 class="mb-4 fw-bold">Dasbor Guru</h3>
+            <div class="card shadow-sm mb-4 border-0">
+                <div class="card-header text-white bg-primary">Unggah Administrasi Guru & Perangkat Ajar</div>
+                <div class="card-body">
+                    <form onsubmit="handleUpload(event, 'Guru')">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Kategori Dokumen</label>
+                            <select class="form-select" id="kategori-guru" required>
+                                <option value="Perangkat Ajar">Perangkat Ajar (RPP/Modul Ajar)</option>
+                                <option value="Instrumen Asesmen">Instrumen Asesmen & Penilaian</option>
+                                <option value="Administrasi Kelas">Administrasi Kelas (Kehadiran, dll)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3"><label class="form-label fw-bold">Pilih File</label><input type="file" id="file-guru" class="form-control" required></div>
+                        <button type="submit" id="btn-upload-guru" class="btn btn-primary px-4"><i class="fa-solid fa-cloud-arrow-up"></i> Unggah Dokumen</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-laporan" class="view-section">
+            <h3 class="mb-4 fw-bold">Form Pengisian Laporan Aktivitas</h3>
+            <div class="card shadow-sm mb-4 border-0">
+                <div class="card-header text-white" style="background-color: #d97706;"><i class="fa-solid fa-pen-clip me-2"></i> Kirim Laporan Baru</div>
+                <div class="card-body">
+                    <form onsubmit="submitLaporan(event)">
+                        <div class="mb-3"><label class="form-label fw-bold">Judul / Nama Kegiatan</label><input type="text" id="laporan-judul" class="form-control" required placeholder="Contoh: Rapat Koordinasi"></div>
+                        <div class="mb-3"><label class="form-label fw-bold">Isi Laporan / Keterangan Lengkap</label><textarea id="laporan-isi" class="form-control" rows="4" required placeholder="Tuliskan deskripsi..."></textarea></div>
+                        <button type="submit" id="btn-submit-laporan" class="btn text-white px-4 shadow-sm" style="background-color: #d97706;"><i class="fa-solid fa-paper-plane me-2"></i> Publikasikan Laporan</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-supervisi" class="view-section">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="fw-bold"><i class="fa-solid fa-clipboard-check text-success me-2"></i> Jadwal Supervisi Binaan</h3>
+                <button id="btn-tambah-jadwal" class="btn text-white shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalJadwal" style="background-color: #059669; display: none;">
+                    <i class="fa-solid fa-plus me-1"></i> Buat Jadwal Baru
+                </button>
+            </div>
+            <div class="alert alert-info border-0 shadow-sm"><i class="fa-solid fa-circle-info me-2"></i> Pengawas akan melakukan kunjungan observasi ke sekolah sesuai dengan jadwal di bawah ini.</div>
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-0 table-responsive">
+                    <table class="table table-hover table-striped m-0 align-middle small" style="min-width: 900px;">
+                        <thead class="table-primary">
+                            <tr><th>Sekolah</th><th>Sasaran (Guru/Kepsek)</th><th>Jenis</th><th>Tanggal & Waktu</th><th>Fokus Catatan</th><th>Status</th></tr>
+                        </thead>
+                        <tbody id="tabel-jadwal-supervisi"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL JADWAL -->
+        <div class="modal fade" id="modalJadwal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg">
+                    <div class="modal-header text-white" style="background-color: #059669;">
+                        <h5 class="modal-title fw-bold"><i class="fa-solid fa-calendar-plus me-2"></i> Rencanakan Supervisi</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <form id="form-jadwal" onsubmit="submitJadwalSupervisi(event)">
+                            <div class="mb-3"><label class="form-label fw-bold">Sekolah Binaan</label><input type="text" id="jadwal-sekolah" class="form-control" required placeholder="Contoh: SD NEGERI 001 LUMBIS"></div>
+                            <div class="mb-3"><label class="form-label fw-bold">Nama Sasaran (Guru/Kepsek)</label><input type="text" id="jadwal-sasaran" class="form-control" required placeholder="Contoh: Samsuddin, S.Pd."></div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Jenis Supervisi</label>
+                                <select id="jadwal-jenis" class="form-select" required>
+                                    <option value="Supervisi Akademik">Supervisi Akademik (Guru)</option>
+                                    <option value="Supervisi Manajerial">Supervisi Manajerial (Kepala Sekolah)</option>
+                                </select>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-6"><label class="form-label fw-bold">Tanggal</label><input type="date" id="jadwal-tanggal" class="form-control" required></div>
+                                <div class="col-6"><label class="form-label fw-bold">Waktu (Jam)</label><input type="text" id="jadwal-waktu" class="form-control" required placeholder="08:00 - 10:00 WITA"></div>
+                            </div>
+                            <div class="mb-4"><label class="form-label fw-bold">Catatan / Fokus Observasi</label><textarea id="jadwal-fokus" class="form-control" rows="2" placeholder="Contoh: Observasi pembelajaran."></textarea></div>
+                            <button type="submit" id="btn-submit-jadwal" class="btn w-100 fw-bold text-white shadow-sm" style="background-color: #059669;">Simpan Jadwal ke Database</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-approval" class="view-section">
+            <h3 class="mb-4 fw-bold text-danger"><i class="fa-solid fa-user-shield me-2"></i> Daftar Meminta Persetujuan</h3>
+            <div class="d-flex flex-wrap gap-2 mb-4">
+                <a href="https://docs.google.com/spreadsheets/d/1RbT7l68VNDvsY8pPB4Xsf_rVEk2oQX8waPVgw-hvGUY/edit" target="_blank" class="btn btn-sm text-white fw-bold shadow-sm bg-success"><i class="fa-solid fa-table me-1"></i> Database</a>
+                <a href="https://drive.google.com/drive/folders/1ZbBJnkucyyfbO_8B5E4OlXcXeg57iO-D" target="_blank" class="btn btn-sm text-white fw-bold shadow-sm bg-primary"><i class="fa-solid fa-image me-1"></i> Galeri Foto</a>
+                <a href="https://drive.google.com/drive/folders/19OA2SH_1MWplEzvcB7jfmtNt8nQVjCey" target="_blank" class="btn btn-sm text-white fw-bold shadow-sm" style="background-color: #8b5cf6;"><i class="fa-solid fa-folder-open me-1"></i> Arsip & Dokumen</a>
+            </div>
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-0 table-responsive">
+                    <table class="table table-hover m-0" style="min-width: 500px;">
+                        <thead class="table-danger"><tr><th>Nama User</th><th>Peran</th><th>Status</th><th>Aksi</th></tr></thead>
+                        <tbody id="approval-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div id="view-arsip" class="view-section">
+            <h3 class="mb-4 fw-bold">Arsip & Dokumen Cloud</h3>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="alert alert-primary border-0 shadow-sm w-100 mb-0"><i class="fa-solid fa-folder-tree me-2"></i> Menampilkan direktori dari Google Drive...</div>
+                <button onclick="muatArsipDrive()" class="btn btn-sm btn-outline-primary ms-2"><i class="fa-solid fa-rotate"></i> Refresh</button>
+            </div>
+            <div id="arsip-container" class="vstack gap-2"></div>
+        </div>
+        
+        <div id="view-unapproved" class="view-section">
+            <div class="text-center py-5">
+                <i class="fa-solid fa-lock text-secondary" style="font-size: 80px; margin-bottom: 20px;"></i>
+                <h2 class="fw-bold mb-3">Akses Terkunci</h2>
+                <p class="text-muted mb-4">Akun Anda telah berhasil masuk, namun menu terbatas belum dapat diakses.<br>Silakan hubungi Pengawas (Admin) agar fitur dibuka.</p>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let appState = { isLoggedIn: false, role: 'public', isApproved: false, username: '' };
+    let chartRaporObj = null;
+    let loginModalObj = null;
+    let modalJadwalObj = null;
+
+    window.onload = () => { 
+        loginModalObj = new bootstrap.Modal(document.getElementById('loginModal'));
+        modalJadwalObj = new bootstrap.Modal(document.getElementById('modalJadwal'));
+        initChartRapor();
+        fetchDashboardStats();
+        renderRecentReports();
+        updateUI(); 
+    };
+
+    function showMessage(msg, type='success') {
+        const box = document.getElementById('message-box');
+        document.getElementById('message-text').innerHTML = msg;
+        box.className = `toast align-items-center text-bg-${type} border-0 show`;
+        box.style.display = 'block';
+        setTimeout(() => box.style.display = 'none', 3500); 
+    }
+    
+    function closeMessage() { document.getElementById('message-box').style.display = 'none'; }
+    
+    function toggleDarkMode() {
+        const htmlTag = document.documentElement;
+        htmlTag.setAttribute('data-bs-theme', document.getElementById('darkModeSwitch').checked ? 'dark' : 'light');
+    }
+    
+    function toggleSidebar() { document.getElementById('sidebar-container').classList.toggle('show'); }
+    
+    function toggleSubMenu(id) { 
+        const el = document.getElementById(id);
+        el.classList.toggle('d-none'); 
+    }
+
+    function showSection(id, element = null) {
+        document.querySelectorAll('.view-section').forEach(el => el.style.display = 'none');
+        document.getElementById(id).style.display = 'block';
+        
+        if (element) { 
+            document.querySelectorAll('.menu-link').forEach(el => el.classList.remove('active')); 
+            element.classList.add('active'); 
+        }
+        
+        if (window.innerWidth <= 992) document.getElementById('sidebar-container').classList.remove('show');
+        
+        if (id === 'view-dashboard') fetchDashboardStats();
+        if (id === 'view-approval') renderApprovalTable();
+        if (id === 'view-profil-sekolah') fetchProfilSekolah();
+        if (id === 'view-galeri') muatGaleriDrive();
+        if (id === 'view-arsip') muatArsipDrive();
+        if (id === 'view-supervisi') {
+            document.getElementById('btn-tambah-jadwal').style.display = (appState.role === 'pengawas') ? 'block' : 'none';
+            renderJadwalSupervisi();
+        }
+    }
+
+    function fetchDashboardStats() {
+        google.script.run.withSuccessHandler(function(stats) {
+            if(stats.sukses) {
+                document.getElementById('dash-binaan').innerHTML = stats.binaan + ' <small class="fs-6">Sekolah</small>';
+                document.getElementById('dash-supervisi').innerHTML = stats.supervisi + ' <small class="fs-6">Sekolah</small>';
+                document.getElementById('dash-peringatan').innerHTML = stats.peringatan + ' <small class="fs-6">Sekolah</small>';
+                document.getElementById('dash-guru').innerHTML = stats.guru + ' <small class="fs-6">Orang</small>';
+            }
+        }).getDashboardData();
+    }
+
+    function prosesLogin(e) {
+        e.preventDefault();
+        const btn = document.querySelector('#form-login button[type="submit"]');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Login...'; btn.disabled = true;
+
+        google.script.run.withSuccessHandler(res => {
+            btn.innerHTML = 'Login Sekarang'; btn.disabled = false;
+            if (res.sukses) {
+                appState = { isLoggedIn: true, username: res.sekolah, role: res.role, isApproved: res.isApproved };
+                loginModalObj.hide(); 
+                document.getElementById('form-login').reset();
+                showMessage(`Login sebagai ${res.role}`, 'success'); 
+                updateUI();
+                fetchDashboardStats(); 
+            } else {
+                showMessage(res.pesan, 'danger');
+            }
+        }).verifikasiLogin(document.getElementById('login-username').value, document.getElementById('login-password').value);
+    }
+
+    function logoutUser() { 
+        appState = { isLoggedIn: false, role: 'public', isApproved: false, username: '' }; 
+        updateUI(); 
+        showMessage('Keluar berhasil.', 'info'); 
+    }
+
+    function updateUI() {
+        document.getElementById('btn-show-login').style.display = appState.isLoggedIn ? 'none' : 'block';
+        document.getElementById('sidebar-profile').style.display = appState.isLoggedIn ? 'block' : 'none';
+        document.getElementById('sidebar-public-msg').style.display = appState.isLoggedIn ? 'none' : 'block';
+        document.getElementById('sidebar-logout').style.display = appState.isLoggedIn ? 'block' : 'none';
+        
+        document.getElementById('menu-group-restricted').style.display = 'none';
+        document.getElementById('menu-group-pengawas').style.display = 'none';
+        document.getElementById('nav-kepsek').style.display = 'none';
+        document.getElementById('nav-guru').style.display = 'none';
+        document.getElementById('nav-laporan').style.display = 'none';
+
+        if (appState.isLoggedIn) {
+            document.getElementById('ui-username').innerText = appState.username;
+            document.getElementById('ui-avatar').innerText = appState.username.charAt(0).toUpperCase();
+            document.getElementById('ui-role').innerText = appState.role.toUpperCase();
+            document.getElementById('ui-status').innerHTML = appState.isApproved ? '<span class="text-success"><i class="fa-solid fa-check"></i> Approved</span>' : '<span class="text-warning">Menunggu Approve</span>';
+
+            if (appState.role === 'pengawas') {
+                document.getElementById('menu-group-restricted').style.display = 'block'; 
+                document.getElementById('menu-group-pengawas').style.display = 'block';
+                showSection('view-dashboard', document.getElementById('nav-dashboard'));
+            } else if (appState.isApproved) {
+                document.getElementById('menu-group-restricted').style.display = 'block';
+                document.getElementById('nav-laporan').style.display = 'block';
+                if(appState.role === 'kepsek') { document.getElementById('nav-kepsek').style.display = 'block'; showSection('view-kepsek', document.getElementById('nav-kepsek')); }
+                if(appState.role === 'guru') { document.getElementById('nav-guru').style.display = 'block'; showSection('view-guru', document.getElementById('nav-guru')); }
+            } else { 
+                showSection('view-unapproved'); 
+            }
+        } else { 
+            showSection('view-dashboard', document.getElementById('nav-dashboard')); 
+        }
+    }
+
+    function initChartRapor() {
+        const ctx = document.getElementById('raporChart');
+        if(ctx) {
+            chartRaporObj = new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: { labels: ['SMPN 1 Lumbis', 'SDN 001', 'SMPN 2'], datasets: [{ label: 'Indikator Turun', data: [8, 6, 4], backgroundColor: '#dc3545' }] },
+                options: { responsive: true, plugins: { legend: { display: false } } }
+            });
+        }
+    }
+
+    function lihatDetailAI(namaSekolah) {
+        document.getElementById('ai-school-name').innerText = "Hasil Analisis Otomatis: " + namaSekolah;
+        document.getElementById('ai-result-panel').style.display = 'block';
+        document.getElementById('ai-result-panel').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function downloadPDF(elementId, fileName) {
+        const element = document.getElementById(elementId);
+        const opt = { margin: 0.5, filename: fileName, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' } };
+        showMessage("Menyiapkan PDF, mohon tunggu...", "info");
+        html2pdf().set(opt).from(element).save();
+    }
+
+    function handleUpload(e, roleName) {
+        e.preventDefault();
+        const prefix = roleName === 'Kepala Sekolah' ? 'kepsek' : 'guru';
+        const fileInput = document.getElementById('file-' + prefix);
+        const kategori = document.getElementById('kategori-' + prefix).value;
+        const btnSubmit = document.getElementById('btn-upload-' + prefix);
+        
+        if (fileInput.files.length === 0) return showMessage('Pilih file terlebih dahulu.', 'danger');
+        
+        btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengunggah...'; btnSubmit.disabled = true;
+        const reader = new FileReader();
+        
+        reader.onload = function() {
+            const base64Data = reader.result.split(',')[1];
+            google.script.run
+                .withSuccessHandler(res => {
+                    btnSubmit.innerHTML = 'Unggah Dokumen'; btnSubmit.disabled = false; fileInput.value = '';
+                    if (res.sukses) {
+                        showMessage(res.pesan, 'success');
+                        if(res.isRapor) {
+                            document.getElementById('ai-loader').style.display = 'flex';
+                            setTimeout(() => {
+                                document.getElementById('ai-loader').style.display = 'none';
+                                showMessage("AI Selesai Menganalisis Rapor!", "success");
+                                showSection('view-analisis-rapor');
+                                lihatDetailAI(appState.username);
+                            }, 3500); 
+                        }
+                    } else showMessage(res.pesan, 'danger');
+                })
+                .prosesUnggahDokumen(base64Data, fileInput.files[0].name, fileInput.files[0].type, appState.username, kategori, appState.username);
+        };
+        reader.readAsDataURL(fileInput.files[0]);
+    }
+
+    function submitLaporan(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btn-submit-laporan');
+        const judul = document.getElementById('laporan-judul').value;
+        const isi = document.getElementById('laporan-isi').value; 
+        
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...'; btn.disabled = true;
+        
+        google.script.run.withSuccessHandler(res => {
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane me-2"></i> Publikasikan Laporan'; btn.disabled = false;
+            if(res.sukses) {
+                showMessage('Laporan berhasil dikirim ke Database!', 'success');
+                document.getElementById('laporan-judul').value = ''; document.getElementById('laporan-isi').value = '';
+                renderRecentReports(); 
+                showSection('view-dashboard', document.getElementById('nav-dashboard')); 
+            } else {
+                showMessage(res.pesan, 'danger');
+            }
+        }).simpanLaporan(appState.username, appState.role, judul, isi);
+    }
+
+    function renderRecentReports() {
+        const container = document.getElementById('recent-reports-container');
+        if (!container) return;
+        container.innerHTML = '<div class="text-center text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Memuat laporan...</div>';
+        
+        google.script.run
+            .withFailureHandler(err => {
+                 container.innerHTML = `<p class="small text-danger text-center"><i class="fa-solid fa-triangle-exclamation"></i> Error: ${err.message}</p>`;
+            })
+            .withSuccessHandler(reports => {
+                container.innerHTML = '';
+                if(!reports || reports.length === 0) {
+                    container.innerHTML = '<p class="small text-muted fst-italic text-center m-0">Belum ada laporan aktivitas terbaru.</p>'; 
+                    return;
+                }
+                reports.forEach(report => {
+                    let reportDate = (report.time) ? report.time.toString() : "-";
+                    let roleBadgeClass = report.role.toLowerCase().includes('kepala') ? 'bg-primary' : 'bg-success';
+                    container.innerHTML += `
+                        <div class="p-3 border rounded bg-white shadow-sm">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div><span class="fw-bold small text-dark me-2">${report.user}</span><span class="badge ${roleBadgeClass}" style="font-size: 10px;">${report.role}</span></div>
+                                <span class="text-muted" style="font-size: 11px;"><i class="fa-regular fa-clock me-1"></i> ${reportDate} WIB</span>
+                            </div>
+                            <p class="small m-0 text-secondary"><i class="fa-solid fa-angle-right text-warning me-1"></i> ${report.judul}</p>
+                        </div>`;
+                });
+            }).getLaporanTerkini();
+    }
+
+    function renderApprovalTable() {
+        const tbody = document.getElementById('approval-table-body');
+        if(!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted"><i class="fa-solid fa-spinner fa-spin me-2"></i> Memuat data...</td></tr>';
+        
+        google.script.run.withSuccessHandler(function(pendingUsersDB) {
+            tbody.innerHTML = '';
+            if(!pendingUsersDB || pendingUsersDB.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Seluruh pengguna sudah disetujui.</td></tr>'; return; }
+            pendingUsersDB.forEach(user => {
+                tbody.innerHTML += `
+                    <tr><td class="align-middle fw-bold">${user.name}</td><td class="align-middle">${user.role}</td><td class="align-middle"><span class="badge bg-warning text-dark">Menunggu</span></td>
+                    <td class="align-middle"><button class="btn btn-sm text-white" style="background-color: #059669;" onclick="approveRealtimeUser(this, ${user.row})"><i class="fa-solid fa-check"></i> Approve</button></td></tr>`;
+            });
+        }).getPendingUsers();
+    }
+
+    function approveRealtimeUser(btn, rowNumber) {
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...'; btn.disabled = true;
+        google.script.run.withSuccessHandler(res => {
+            if(res.sukses) { showMessage(res.pesan, 'success'); renderApprovalTable(); } 
+            else { showMessage(res.pesan, 'danger'); btn.innerHTML = '<i class="fa-solid fa-check"></i> Approve'; btn.disabled = false; }
+        }).approveUser(rowNumber);
+    }
+
+    function fetchProfilSekolah() {
+        const tbody = document.getElementById('tabel-data-sekolah');
+        if(!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted"><i class="fa-solid fa-spinner fa-spin me-2"></i> Memuat data...</td></tr>';
+        
+        google.script.run.withSuccessHandler(function(data) {
+            tbody.innerHTML = '';
+            if(data.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Data sekolah belum tersedia.</td></tr>'; return; }
+            data.forEach((s, index) => {
+                tbody.innerHTML += `<tr><td class="text-center">${index + 1}</td><td class="text-center fw-bold">${s.npsn}</td><td class="fw-bold text-success">${s.nama}</td><td>${s.kepsek}</td>
+                <td class="text-center font-monospace">${s.guru}</td><td class="text-center font-monospace">${s.siswaL}</td><td class="text-center font-monospace">${s.siswaP}</td>
+                <td class="text-center font-monospace">${s.rombel}</td><td class="text-center font-monospace">${s.kelas}</td></tr>`;
+            });
+        }).getDataSekolah();
+    }
+
+    function muatGaleriDrive() {
+        const container = document.getElementById('galeri-container');
+        container.innerHTML = '<div class="col-12 text-center py-5"><i class="fa-solid fa-spinner fa-spin fs-2"></i><br>Menarik foto dari Google Drive...</div>';
+        
+        google.script.run.withSuccessHandler(res => {
+            container.innerHTML = '';
+            if(!res.sukses || res.data.length === 0) { container.innerHTML = '<div class="col-12 text-center text-muted py-5">Belum ada foto atau folder ditutup. Pastikan Akses Folder Drive Anda "Anyone with the link - Viewer".</div>'; return; }
+            res.data.forEach(foto => {
+                container.innerHTML += `<div class="col-md-4 col-sm-6"><div class="card border-0 shadow-sm overflow-hidden h-100 rounded">
+                    <img src="${foto.url}" class="card-img-top w-100 bg-secondary" style="height: 200px; object-fit: cover;" alt="Galeri" onerror="this.onerror=null; this.src='https://placehold.co/400x200?text=Gagal+Muat';">
+                    <div class="card-body p-2 bg-white text-center small text-secondary text-truncate">${foto.name}</div></div></div>`;
+            });
+        }).getFotoGaleri();
+    }
+
+    function muatArsipDrive() {
+        const container = document.getElementById('arsip-container');
+        container.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin fs-3"></i><p>Memuat dokumen...</p></div>';
+        
+        google.script.run.withSuccessHandler(res => {
+            container.innerHTML = '';
+            if(!res.sukses || res.data.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-4">Belum ada dokumen di folder arsip ini.</div>';
+                return;
+            }
+            res.data.forEach(doc => {
+                let icon = 'fa-file-lines text-secondary';
+                if(doc.type.includes('pdf')) icon = 'fa-file-pdf text-danger';
+                if(doc.type.includes('word')) icon = 'fa-file-word text-primary';
+                if(doc.type.includes('spreadsheet') || doc.type.includes('excel')) icon = 'fa-file-excel text-success';
+                
+                container.innerHTML += `
+                    <div class="p-3 border rounded bg-white shadow-sm d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center overflow-hidden">
+                            <i class="fa-solid ${icon} fs-4 me-3"></i>
+                            <span class="fw-bold small text-dark text-truncate">${doc.name}</span>
+                        </div>
+                        <a href="${doc.url}" target="_blank" class="btn btn-sm btn-success rounded-pill px-3"><i class="fa-solid fa-download me-1"></i> Buka</a>
+                    </div>
+                `;
+            });
+        }).getArsipDokumen();
+    }
+
+    function kirimPengaduan(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btn-submit-pengaduan');
+        const nama = document.getElementById('pengaduan-nama').value;
+        const sekolah = document.getElementById('pengaduan-sekolah').value;
+        const isi = document.getElementById('pengaduan-isi').value;
+        const fileInput = document.getElementById('pengaduan-file');
+        
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...'; btn.disabled = true;
+
+        if (fileInput.files.length > 0) {
+            const reader = new FileReader();
+            reader.onload = function() {
+                google.script.run.withSuccessHandler(res => {
+                    btn.innerHTML = '<i class="fa-solid fa-paper-plane me-2"></i> Kirim'; btn.disabled = false;
+                    if(res.sukses) { showMessage(res.pesan, 'success'); document.getElementById('form-pengaduan').reset(); }
+                    else showMessage(res.pesan, 'danger');
+                }).simpanPengaduan(nama, sekolah, isi, reader.result.split(',')[1], fileInput.files[0].name, fileInput.files[0].type);
+            };
+            reader.readAsDataURL(fileInput.files[0]);
+        } else {
+            google.script.run.withSuccessHandler(res => {
+                btn.innerHTML = '<i class="fa-solid fa-paper-plane me-2"></i> Kirim'; btn.disabled = false;
+                if(res.sukses) { showMessage(res.pesan, 'success'); document.getElementById('form-pengaduan').reset(); } else showMessage(res.pesan, 'danger');
+            }).simpanPengaduan(nama, sekolah, isi, "", "", "");
+        }
+    }
+
+    function renderJadwalSupervisi() {
+        const tbody = document.getElementById('tabel-jadwal-supervisi');
+        if(!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted"><i class="fa-solid fa-spinner fa-spin me-2"></i> Menarik jadwal dari database...</td></tr>';
+        
+        google.script.run
+            .withFailureHandler(function(err) {
+                 tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation"></i> Error Sistem: ${err.message}</td></tr>`;
+            })
+            .withSuccessHandler(function(res) {
+                tbody.innerHTML = '';
+                
+                if(!res.sukses) {
+                     tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation"></i> ${res.pesan}</td></tr>`;
+                     return;
+                }
+
+                let data = res.data;
+                if(!data || data.length === 0) { 
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Belum ada jadwal supervisi di dalam database.</td></tr>'; 
+                    return; 
+                }
+
+                let isPengawas = appState.role === 'pengawas';
+                let displayData = data;
+                
+                if(!isPengawas) {
+                    displayData = data.filter(d => {
+                        if(!d.sekolah) return false;
+                        let userLower = appState.username.toString().toLowerCase();
+                        let schoolLower = d.sekolah.toString().toLowerCase();
+                        return schoolLower.includes(userLower) || userLower.includes(schoolLower);
+                    });
+                }
+
+                if(displayData.length === 0) { 
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Belum ada jadwal kunjungan untuk sekolah Anda.</td></tr>'; 
+                    return; 
+                }
+
+                displayData.forEach(j => {
+                    let statusBadge = j.status.includes('Selesai') ? 'bg-success' : j.status.includes('Ditunda') ? 'bg-danger' : 'bg-warning text-dark';
+                    let jenisWarna = j.jenis.includes('Akademik') ? 'text-primary' : 'text-danger';
+                    
+                    let tglFormated = j.tanggal;
+
+                    tbody.innerHTML += `<tr><td class="fw-bold">${j.sekolah}</td><td class="fw-bold text-secondary">${j.sasaran}</td><td><span class="fw-bold ${jenisWarna}">${j.jenis}</span></td>
+                    <td><i class="fa-regular fa-calendar text-success me-1"></i> ${tglFormated}<br><small class="text-muted"><i class="fa-regular fa-clock me-1"></i> ${j.waktu}</small></td>
+                    <td>${j.fokus}</td><td><span class="badge ${statusBadge}">${j.status}</span></td></tr>`;
+                });
+        }).getJadwalSupervisi();
+    }
+
+    function submitJadwalSupervisi(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btn-submit-jadwal');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Menyimpan...'; btn.disabled = true;
+
+        google.script.run.withSuccessHandler(function(res) {
+            btn.innerHTML = 'Simpan Jadwal ke Database'; btn.disabled = false;
+            if(res.sukses) {
+                showMessage(res.pesan, 'success'); 
+                modalJadwalObj.hide(); 
+                document.getElementById('form-jadwal').reset(); 
+                renderJadwalSupervisi();
+                fetchDashboardStats(); 
+            } else {
+                showMessage(res.pesan, 'danger');
+            }
+        }).simpanJadwalSupervisi(
+            document.getElementById('jadwal-sekolah').value, 
+            document.getElementById('jadwal-sasaran').value,
+            document.getElementById('jadwal-jenis').value, 
+            document.getElementById('jadwal-tanggal').value,
+            document.getElementById('jadwal-waktu').value, 
+            document.getElementById('jadwal-fokus').value
+        );
+    }
+</script>
+</body>
+</html>
