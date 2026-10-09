@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aplikasi SADAP 2026 - Nunukan</title>
+    
     <!-- Bootstrap 5 CSS & Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
@@ -408,7 +409,35 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
+    // ==========================================
+    // SISTEM PENGHUBUNG API (VERCEL KE GOOGLE)
+    // URL DI BAWAH SUDAH SAYA MASUKKAN SESUAI MILIK ANDA
+    // ==========================================
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxXRf__PxxVNtSVJD-Ki1Z641QJ2NSzNaol3PPpSxTf8evZjPDwaKFiO4UOFPpSGFBQRQ/exec"; 
+
+    // Fungsi Jembatan untuk menggantikan google.script.run
+    async function callGasApi(actionName, parameters = {}) {
+        try {
+            const response = await fetch(GAS_API_URL, {
+                method: 'POST',
+                redirect: 'follow', // Wajib untuk melewati sistem pengalihan Google
+                body: JSON.stringify({ action: actionName, params: parameters })
+            });
+            
+            const result = await response.json();
+            if (result.status === "success") {
+                return result.data;
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error) {
+            console.error("API Error:", error);
+            throw error;
+        }
+    }
+
     let appState = { isLoggedIn: false, role: 'public', isApproved: false, username: '' };
     let chartRaporObj = null;
     let loginModalObj = null;
@@ -467,24 +496,32 @@
         }
     }
 
-    function fetchDashboardStats() {
-        google.script.run.withSuccessHandler(function(stats) {
+    async function fetchDashboardStats() {
+        try {
+            const stats = await callGasApi('getDashboardData');
             if(stats.sukses) {
                 document.getElementById('dash-binaan').innerHTML = stats.binaan + ' <small class="fs-6">Sekolah</small>';
                 document.getElementById('dash-supervisi').innerHTML = stats.supervisi + ' <small class="fs-6">Sekolah</small>';
                 document.getElementById('dash-peringatan').innerHTML = stats.peringatan + ' <small class="fs-6">Sekolah</small>';
                 document.getElementById('dash-guru').innerHTML = stats.guru + ' <small class="fs-6">Orang</small>';
             }
-        }).getDashboardData();
+        } catch (err) {
+            console.error(err);
+        }
     }
 
-    function prosesLogin(e) {
+    async function prosesLogin(e) {
         e.preventDefault();
         const btn = document.querySelector('#form-login button[type="submit"]');
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Login...'; btn.disabled = true;
 
-        google.script.run.withSuccessHandler(res => {
+        try {
+            const user = document.getElementById('login-username').value;
+            const pass = document.getElementById('login-password').value;
+            const res = await callGasApi('verifikasiLogin', { username: user, password: pass });
+            
             btn.innerHTML = 'Login Sekarang'; btn.disabled = false;
+            
             if (res.sukses) {
                 appState = { isLoggedIn: true, username: res.sekolah, role: res.role, isApproved: res.isApproved };
                 loginModalObj.hide(); 
@@ -495,7 +532,10 @@
             } else {
                 showMessage(res.pesan, 'danger');
             }
-        }).verifikasiLogin(document.getElementById('login-username').value, document.getElementById('login-password').value);
+        } catch(err) {
+            btn.innerHTML = 'Login Sekarang'; btn.disabled = false;
+            showMessage("Gagal terhubung ke server", 'danger');
+        }
     }
 
     function logoutUser() { 
@@ -575,30 +615,41 @@
         btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengunggah...'; btnSubmit.disabled = true;
         const reader = new FileReader();
         
-        reader.onload = function() {
+        reader.onload = async function() {
             const base64Data = reader.result.split(',')[1];
-            google.script.run
-                .withSuccessHandler(res => {
-                    btnSubmit.innerHTML = 'Unggah Dokumen'; btnSubmit.disabled = false; fileInput.value = '';
-                    if (res.sukses) {
-                        showMessage(res.pesan, 'success');
-                        if(res.isRapor) {
-                            document.getElementById('ai-loader').style.display = 'flex';
-                            setTimeout(() => {
-                                document.getElementById('ai-loader').style.display = 'none';
-                                showMessage("AI Selesai Menganalisis Rapor!", "success");
-                                showSection('view-analisis-rapor');
-                                lihatDetailAI(appState.username);
-                            }, 3500); 
-                        }
-                    } else showMessage(res.pesan, 'danger');
-                })
-                .prosesUnggahDokumen(base64Data, fileInput.files[0].name, fileInput.files[0].type, appState.username, kategori, appState.username);
+            try {
+                const res = await callGasApi('prosesUnggahDokumen', {
+                    base64Data: base64Data,
+                    namaFile: fileInput.files[0].name,
+                    tipeMime: fileInput.files[0].type,
+                    namaSekolah: appState.username,
+                    kategori: kategori,
+                    userPengunggah: appState.username
+                });
+
+                btnSubmit.innerHTML = 'Unggah Dokumen'; btnSubmit.disabled = false; fileInput.value = '';
+                
+                if (res.sukses) {
+                    showMessage(res.pesan, 'success');
+                    if(res.isRapor) {
+                        document.getElementById('ai-loader').style.display = 'flex';
+                        setTimeout(() => {
+                            document.getElementById('ai-loader').style.display = 'none';
+                            showMessage("AI Selesai Menganalisis Rapor!", "success");
+                            showSection('view-analisis-rapor');
+                            lihatDetailAI(appState.username);
+                        }, 3500); 
+                    }
+                } else showMessage(res.pesan, 'danger');
+            } catch (err) {
+                btnSubmit.innerHTML = 'Unggah Dokumen'; btnSubmit.disabled = false;
+                showMessage("Gagal mengunggah file.", 'danger');
+            }
         };
         reader.readAsDataURL(fileInput.files[0]);
     }
 
-    function submitLaporan(e) {
+    async function submitLaporan(e) {
         e.preventDefault();
         const btn = document.getElementById('btn-submit-laporan');
         const judul = document.getElementById('laporan-judul').value;
@@ -606,8 +657,10 @@
         
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...'; btn.disabled = true;
         
-        google.script.run.withSuccessHandler(res => {
+        try {
+            const res = await callGasApi('simpanLaporan', { user: appState.username, role: appState.role, judul: judul, isi: isi });
             btn.innerHTML = '<i class="fa-solid fa-paper-plane me-2"></i> Publikasikan Laporan'; btn.disabled = false;
+            
             if(res.sukses) {
                 showMessage('Laporan berhasil dikirim ke Database!', 'success');
                 document.getElementById('laporan-judul').value = ''; document.getElementById('laporan-isi').value = '';
@@ -616,45 +669,48 @@
             } else {
                 showMessage(res.pesan, 'danger');
             }
-        }).simpanLaporan(appState.username, appState.role, judul, isi);
+        } catch (err) {
+             btn.innerHTML = '<i class="fa-solid fa-paper-plane me-2"></i> Publikasikan Laporan'; btn.disabled = false;
+             showMessage("Gagal mengirim laporan", "danger");
+        }
     }
 
-    function renderRecentReports() {
+    async function renderRecentReports() {
         const container = document.getElementById('recent-reports-container');
         if (!container) return;
         container.innerHTML = '<div class="text-center text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Memuat laporan...</div>';
         
-        google.script.run
-            .withFailureHandler(err => {
-                 container.innerHTML = `<p class="small text-danger text-center"><i class="fa-solid fa-triangle-exclamation"></i> Error: ${err.message}</p>`;
-            })
-            .withSuccessHandler(reports => {
-                container.innerHTML = '';
-                if(!reports || reports.length === 0) {
-                    container.innerHTML = '<p class="small text-muted fst-italic text-center m-0">Belum ada laporan aktivitas terbaru.</p>'; 
-                    return;
-                }
-                reports.forEach(report => {
-                    let reportDate = (report.time) ? report.time.toString() : "-";
-                    let roleBadgeClass = report.role.toLowerCase().includes('kepala') ? 'bg-primary' : 'bg-success';
-                    container.innerHTML += `
-                        <div class="p-3 border rounded bg-white shadow-sm">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <div><span class="fw-bold small text-dark me-2">${report.user}</span><span class="badge ${roleBadgeClass}" style="font-size: 10px;">${report.role}</span></div>
-                                <span class="text-muted" style="font-size: 11px;"><i class="fa-regular fa-clock me-1"></i> ${reportDate} WIB</span>
-                            </div>
-                            <p class="small m-0 text-secondary"><i class="fa-solid fa-angle-right text-warning me-1"></i> ${report.judul}</p>
-                        </div>`;
-                });
-            }).getLaporanTerkini();
+        try {
+            const reports = await callGasApi('getLaporanTerkini');
+            container.innerHTML = '';
+            if(!reports || reports.length === 0) {
+                container.innerHTML = '<p class="small text-muted fst-italic text-center m-0">Belum ada laporan aktivitas terbaru.</p>'; 
+                return;
+            }
+            reports.forEach(report => {
+                let reportDate = (report.time) ? report.time.toString() : "-";
+                let roleBadgeClass = report.role.toLowerCase().includes('kepala') ? 'bg-primary' : 'bg-success';
+                container.innerHTML += `
+                    <div class="p-3 border rounded bg-white shadow-sm">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div><span class="fw-bold small text-dark me-2">${report.user}</span><span class="badge ${roleBadgeClass}" style="font-size: 10px;">${report.role}</span></div>
+                            <span class="text-muted" style="font-size: 11px;"><i class="fa-regular fa-clock me-1"></i> ${reportDate} WIB</span>
+                        </div>
+                        <p class="small m-0 text-secondary"><i class="fa-solid fa-angle-right text-warning me-1"></i> ${report.judul}</p>
+                    </div>`;
+            });
+        } catch(err) {
+             container.innerHTML = `<p class="small text-danger text-center"><i class="fa-solid fa-triangle-exclamation"></i> Error memuat laporan</p>`;
+        }
     }
 
-    function renderApprovalTable() {
+    async function renderApprovalTable() {
         const tbody = document.getElementById('approval-table-body');
         if(!tbody) return;
         tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted"><i class="fa-solid fa-spinner fa-spin me-2"></i> Memuat data...</td></tr>';
         
-        google.script.run.withSuccessHandler(function(pendingUsersDB) {
+        try {
+            const pendingUsersDB = await callGasApi('getPendingUsers');
             tbody.innerHTML = '';
             if(!pendingUsersDB || pendingUsersDB.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Seluruh pengguna sudah disetujui.</td></tr>'; return; }
             pendingUsersDB.forEach(user => {
@@ -662,23 +718,29 @@
                     <tr><td class="align-middle fw-bold">${user.name}</td><td class="align-middle">${user.role}</td><td class="align-middle"><span class="badge bg-warning text-dark">Menunggu</span></td>
                     <td class="align-middle"><button class="btn btn-sm text-white" style="background-color: #059669;" onclick="approveRealtimeUser(this, ${user.row})"><i class="fa-solid fa-check"></i> Approve</button></td></tr>`;
             });
-        }).getPendingUsers();
+        } catch(err) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Gagal memuat data</td></tr>';
+        }
     }
 
-    function approveRealtimeUser(btn, rowNumber) {
+    async function approveRealtimeUser(btn, rowNumber) {
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...'; btn.disabled = true;
-        google.script.run.withSuccessHandler(res => {
+        try {
+            const res = await callGasApi('approveUser', { rowNumber: rowNumber });
             if(res.sukses) { showMessage(res.pesan, 'success'); renderApprovalTable(); } 
             else { showMessage(res.pesan, 'danger'); btn.innerHTML = '<i class="fa-solid fa-check"></i> Approve'; btn.disabled = false; }
-        }).approveUser(rowNumber);
+        } catch(err) {
+             showMessage('Error menyetujui user', 'danger'); btn.innerHTML = '<i class="fa-solid fa-check"></i> Approve'; btn.disabled = false;
+        }
     }
 
-    function fetchProfilSekolah() {
+    async function fetchProfilSekolah() {
         const tbody = document.getElementById('tabel-data-sekolah');
         if(!tbody) return;
         tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted"><i class="fa-solid fa-spinner fa-spin me-2"></i> Memuat data...</td></tr>';
         
-        google.script.run.withSuccessHandler(function(data) {
+        try {
+            const data = await callGasApi('getDataSekolah');
             tbody.innerHTML = '';
             if(data.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Data sekolah belum tersedia.</td></tr>'; return; }
             data.forEach((s, index) => {
@@ -686,14 +748,17 @@
                 <td class="text-center font-monospace">${s.guru}</td><td class="text-center font-monospace">${s.siswaL}</td><td class="text-center font-monospace">${s.siswaP}</td>
                 <td class="text-center font-monospace">${s.rombel}</td><td class="text-center font-monospace">${s.kelas}</td></tr>`;
             });
-        }).getDataSekolah();
+        } catch(err) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger">Error memuat data sekolah</td></tr>';
+        }
     }
 
-    function muatGaleriDrive() {
+    async function muatGaleriDrive() {
         const container = document.getElementById('galeri-container');
         container.innerHTML = '<div class="col-12 text-center py-5"><i class="fa-solid fa-spinner fa-spin fs-2"></i><br>Menarik foto dari Google Drive...</div>';
         
-        google.script.run.withSuccessHandler(res => {
+        try {
+            const res = await callGasApi('getFotoGaleri');
             container.innerHTML = '';
             if(!res.sukses || res.data.length === 0) { container.innerHTML = '<div class="col-12 text-center text-muted py-5">Belum ada foto atau folder ditutup. Pastikan Akses Folder Drive Anda "Anyone with the link - Viewer".</div>'; return; }
             res.data.forEach(foto => {
@@ -701,14 +766,17 @@
                     <img src="${foto.url}" class="card-img-top w-100 bg-secondary" style="height: 200px; object-fit: cover;" alt="Galeri" onerror="this.onerror=null; this.src='https://placehold.co/400x200?text=Gagal+Muat';">
                     <div class="card-body p-2 bg-white text-center small text-secondary text-truncate">${foto.name}</div></div></div>`;
             });
-        }).getFotoGaleri();
+        } catch(err) {
+            container.innerHTML = '<div class="col-12 text-center text-danger py-5">Gagal memuat galeri.</div>';
+        }
     }
 
-    function muatArsipDrive() {
+    async function muatArsipDrive() {
         const container = document.getElementById('arsip-container');
         container.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin fs-3"></i><p>Memuat dokumen...</p></div>';
         
-        google.script.run.withSuccessHandler(res => {
+        try {
+            const res = await callGasApi('getArsipDokumen');
             container.innerHTML = '';
             if(!res.sukses || res.data.length === 0) {
                 container.innerHTML = '<div class="text-center text-muted py-4">Belum ada dokumen di folder arsip ini.</div>';
@@ -730,7 +798,9 @@
                     </div>
                 `;
             });
-        }).getArsipDokumen();
+        } catch(err) {
+            container.innerHTML = '<div class="text-center text-danger py-4">Gagal memuat dokumen.</div>';
+        }
     }
 
     function kirimPengaduan(e) {
@@ -743,83 +813,96 @@
         
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...'; btn.disabled = true;
 
+        const kirimData = async (base64, fileName, mimeType) => {
+             try {
+                 const res = await callGasApi('simpanPengaduan', { nama: nama, sekolah: sekolah, isi: isi, base64File: base64, fileName: fileName, mimeType: mimeType });
+                 btn.innerHTML = '<i class="fa-solid fa-paper-plane me-2"></i> Kirim'; btn.disabled = false;
+                 if(res.sukses) { showMessage(res.pesan, 'success'); document.getElementById('form-pengaduan').reset(); }
+                 else showMessage(res.pesan, 'danger');
+             } catch(err) {
+                 btn.innerHTML = '<i class="fa-solid fa-paper-plane me-2"></i> Kirim'; btn.disabled = false;
+                 showMessage("Gagal mengirim pengaduan", "danger");
+             }
+        };
+
         if (fileInput.files.length > 0) {
             const reader = new FileReader();
             reader.onload = function() {
-                google.script.run.withSuccessHandler(res => {
-                    btn.innerHTML = '<i class="fa-solid fa-paper-plane me-2"></i> Kirim'; btn.disabled = false;
-                    if(res.sukses) { showMessage(res.pesan, 'success'); document.getElementById('form-pengaduan').reset(); }
-                    else showMessage(res.pesan, 'danger');
-                }).simpanPengaduan(nama, sekolah, isi, reader.result.split(',')[1], fileInput.files[0].name, fileInput.files[0].type);
+                kirimData(reader.result.split(',')[1], fileInput.files[0].name, fileInput.files[0].type);
             };
             reader.readAsDataURL(fileInput.files[0]);
         } else {
-            google.script.run.withSuccessHandler(res => {
-                btn.innerHTML = '<i class="fa-solid fa-paper-plane me-2"></i> Kirim'; btn.disabled = false;
-                if(res.sukses) { showMessage(res.pesan, 'success'); document.getElementById('form-pengaduan').reset(); } else showMessage(res.pesan, 'danger');
-            }).simpanPengaduan(nama, sekolah, isi, "", "", "");
+            kirimData("", "", "");
         }
     }
 
-    function renderJadwalSupervisi() {
+    async function renderJadwalSupervisi() {
         const tbody = document.getElementById('tabel-jadwal-supervisi');
         if(!tbody) return;
         tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted"><i class="fa-solid fa-spinner fa-spin me-2"></i> Menarik jadwal dari database...</td></tr>';
         
-        google.script.run
-            .withFailureHandler(function(err) {
-                 tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation"></i> Error Sistem: ${err.message}</td></tr>`;
-            })
-            .withSuccessHandler(function(res) {
-                tbody.innerHTML = '';
-                
-                if(!res.sukses) {
-                     tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation"></i> ${res.pesan}</td></tr>`;
-                     return;
-                }
+        try {
+            const res = await callGasApi('getJadwalSupervisi');
+            tbody.innerHTML = '';
+            
+            if(!res.sukses) {
+                 tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation"></i> ${res.pesan}</td></tr>`;
+                 return;
+            }
 
-                let data = res.data;
-                if(!data || data.length === 0) { 
-                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Belum ada jadwal supervisi di dalam database.</td></tr>'; 
-                    return; 
-                }
+            let data = res.data;
+            if(!data || data.length === 0) { 
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Belum ada jadwal supervisi di dalam database.</td></tr>'; 
+                return; 
+            }
 
-                let isPengawas = appState.role === 'pengawas';
-                let displayData = data;
-                
-                if(!isPengawas) {
-                    displayData = data.filter(d => {
-                        if(!d.sekolah) return false;
-                        let userLower = appState.username.toString().toLowerCase();
-                        let schoolLower = d.sekolah.toString().toLowerCase();
-                        return schoolLower.includes(userLower) || userLower.includes(schoolLower);
-                    });
-                }
-
-                if(displayData.length === 0) { 
-                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Belum ada jadwal kunjungan untuk sekolah Anda.</td></tr>'; 
-                    return; 
-                }
-
-                displayData.forEach(j => {
-                    let statusBadge = j.status.includes('Selesai') ? 'bg-success' : j.status.includes('Ditunda') ? 'bg-danger' : 'bg-warning text-dark';
-                    let jenisWarna = j.jenis.includes('Akademik') ? 'text-primary' : 'text-danger';
-                    
-                    let tglFormated = j.tanggal;
-
-                    tbody.innerHTML += `<tr><td class="fw-bold">${j.sekolah}</td><td class="fw-bold text-secondary">${j.sasaran}</td><td><span class="fw-bold ${jenisWarna}">${j.jenis}</span></td>
-                    <td><i class="fa-regular fa-calendar text-success me-1"></i> ${tglFormated}<br><small class="text-muted"><i class="fa-regular fa-clock me-1"></i> ${j.waktu}</small></td>
-                    <td>${j.fokus}</td><td><span class="badge ${statusBadge}">${j.status}</span></td></tr>`;
+            let isPengawas = appState.role === 'pengawas';
+            let displayData = data;
+            
+            if(!isPengawas) {
+                displayData = data.filter(d => {
+                    if(!d.sekolah) return false;
+                    let userLower = appState.username.toString().toLowerCase();
+                    let schoolLower = d.sekolah.toString().toLowerCase();
+                    return schoolLower.includes(userLower) || userLower.includes(schoolLower);
                 });
-        }).getJadwalSupervisi();
+            }
+
+            if(displayData.length === 0) { 
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Belum ada jadwal kunjungan untuk sekolah Anda.</td></tr>'; 
+                return; 
+            }
+
+            displayData.forEach(j => {
+                let statusBadge = j.status.includes('Selesai') ? 'bg-success' : j.status.includes('Ditunda') ? 'bg-danger' : 'bg-warning text-dark';
+                let jenisWarna = j.jenis.includes('Akademik') ? 'text-primary' : 'text-danger';
+                
+                let tglFormated = j.tanggal;
+
+                tbody.innerHTML += `<tr><td class="fw-bold">${j.sekolah}</td><td class="fw-bold text-secondary">${j.sasaran}</td><td><span class="fw-bold ${jenisWarna}">${j.jenis}</span></td>
+                <td><i class="fa-regular fa-calendar text-success me-1"></i> ${tglFormated}<br><small class="text-muted"><i class="fa-regular fa-clock me-1"></i> ${j.waktu}</small></td>
+                <td>${j.fokus}</td><td><span class="badge ${statusBadge}">${j.status}</span></td></tr>`;
+            });
+        } catch(err) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation"></i> Error Sistem: Gagal memuat jadwal</td></tr>`;
+        }
     }
 
-    function submitJadwalSupervisi(e) {
+    async function submitJadwalSupervisi(e) {
         e.preventDefault();
         const btn = document.getElementById('btn-submit-jadwal');
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Menyimpan...'; btn.disabled = true;
 
-        google.script.run.withSuccessHandler(function(res) {
+        try {
+            const res = await callGasApi('simpanJadwalSupervisi', {
+                sekolah: document.getElementById('jadwal-sekolah').value, 
+                sasaran: document.getElementById('jadwal-sasaran').value,
+                jenis: document.getElementById('jadwal-jenis').value, 
+                tanggal: document.getElementById('jadwal-tanggal').value,
+                waktu: document.getElementById('jadwal-waktu').value, 
+                fokus: document.getElementById('jadwal-fokus').value
+            });
+
             btn.innerHTML = 'Simpan Jadwal ke Database'; btn.disabled = false;
             if(res.sukses) {
                 showMessage(res.pesan, 'success'); 
@@ -830,14 +913,10 @@
             } else {
                 showMessage(res.pesan, 'danger');
             }
-        }).simpanJadwalSupervisi(
-            document.getElementById('jadwal-sekolah').value, 
-            document.getElementById('jadwal-sasaran').value,
-            document.getElementById('jadwal-jenis').value, 
-            document.getElementById('jadwal-tanggal').value,
-            document.getElementById('jadwal-waktu').value, 
-            document.getElementById('jadwal-fokus').value
-        );
+        } catch(err) {
+            btn.innerHTML = 'Simpan Jadwal ke Database'; btn.disabled = false;
+            showMessage("Gagal menyimpan jadwal", "danger");
+        }
     }
 </script>
 </body>
