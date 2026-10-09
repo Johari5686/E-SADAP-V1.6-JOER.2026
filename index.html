@@ -24,6 +24,7 @@
         [data-bs-theme="dark"] #sidebar-container { background-color: #0f172a; border-color: #1e293b; }
         .main-content { flex: 1; margin-left: 280px; padding: 30px; min-height: calc(100vh - 90px); transition: all 0.3s ease; }
         @media (max-width: 992px) { .main-content { margin-left: 0; } #sidebar-container { margin-left: -280px; } #sidebar-container.show { margin-left: 0; } }
+        
         .menu-link { display: flex; align-items: center; padding: 0.75rem 1rem; color: #475569; border-radius: 0.5rem; margin-bottom: 0.25rem; font-weight: 600; text-decoration: none; transition: all 0.2s; cursor: pointer; }
         .menu-link:hover, .menu-link.active { background-color: #059669; color: white; }
         .menu-link i { width: 24px; text-align: center; margin-right: 10px; }
@@ -412,8 +413,7 @@
 
 <script>
     // ==========================================
-    // SISTEM PENGHUBUNG API (VERCEL KE GOOGLE)
-    // URL DI BAWAH SUDAH SAYA MASUKKAN SESUAI MILIK ANDA
+    // URL WEB APP TERBARU (TIDAK PERLU DIUBAH LAGI)
     // ==========================================
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxXRf__PxxVNtSVJD-Ki1Z641QJ2NSzNaol3PPpSxTf8evZjPDwaKFiO4UOFPpSGFBQRQ/exec"; 
 
@@ -423,6 +423,9 @@
             const response = await fetch(GAS_API_URL, {
                 method: 'POST',
                 redirect: 'follow', // Wajib untuk melewati sistem pengalihan Google
+                headers: {
+                    "Content-Type": "text/plain;charset=utf-8",
+                },
                 body: JSON.stringify({ action: actionName, params: parameters })
             });
             
